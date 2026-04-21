@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # MariaDB Database
+  db:
+    image: mariadb:10.11
+    container_name: funnelos-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-funnelos_root_password}
+      MYSQL_DATABASE: funnelos
+      MYSQL_USER: funnelos
+      MYSQL_PASSWORD: ${DB_PASSWORD:-funnelos_password}
+    volumes:
+      - funnelos_db:/var/lib/mysql
+    networks:
+      - funnelos-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: funnelos-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: funnelos
+      DB_PASSWORD: ${DB_PASSWORD:-funnelos_password}
+      DB_NAME: funnelos
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      AI_PROVIDER: ${AI_PROVIDER:-claude}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    networks:
+      - funnelos-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (dev mode - for production use nginx with static files)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: funnelos-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    networks:
+      - funnelos-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: funnelos-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+      - funnelos_static:/var/www/funnelos:ro
+    networks:
+      - funnelos-network
+    command: >
+      sh -c "nginx -t && nginx -g 'daemon off;'"
+
+volumes:
+  funnelos_db:
+    driver: local
+  funnelos_static:
+    driver: local
+
+networks:
+  funnelos-network:
+    driver: bridge

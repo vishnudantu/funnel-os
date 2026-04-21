@@ -16,7 +16,11 @@
     "build:frontend": "npm run build --workspace=apps/frontend",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "deploy": "./deploy.sh",
+    "deploy:staging": "./deploy.sh staging",
+    "deploy:production": "./deploy.sh production",
+    "init-admin": "node scripts/init-super-admin.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
