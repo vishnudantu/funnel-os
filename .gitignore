@@ -22,15 +22,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
 # Tooling
-coverage/
-.nyc_output/
 .turbo/
 .vercel
 .idea/
@@ -43,18 +35,14 @@ coverage/
 Thumbs.db
 
 # Testing
+coverage/
 .tmp/
 .temp/
 
 # PM2
 .pm2/
 
-# Database
-*.db
-*.sqlite
-
 # Secrets
 *.pem
 *.key
 credentials.json
-service-account.json
