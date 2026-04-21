@@ -1,0 +1,42 @@
+{
+  "name": "@funnelos/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "scripts": {
+    "dev": "node --watch --enable-source-maps src/index.js",
+    "build": "node -e \"console.log('ESM - no build step')\"",
+    "start": "node --enable-source-maps src/index.js",
+    "test": "node --test --experimental-test-coverage src/**/*.test.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "knex migrate:latest",
+    "db:migrate:rollback": "knex migrate:rollback",
+    "db:seed": "knex seed:run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "mariadb": "^3.4.0",
+    "uuid": "^11.0.5",
+    "winston": "^3.17.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.13.1",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3"
+  }
+}
