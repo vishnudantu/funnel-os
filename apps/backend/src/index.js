@@ -11,10 +11,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { authRoutes } from './routes/api/auth.js';
-import { leadsRoutes } from './routes/api/leads.js';
-import { aiRoutes } from './routes/api/ai.js';
-import { messagesRoutes } from './routes/api/messages.js';
+import authRoutes from './routes/api/auth.js';
+import leadsRoutes from './routes/api/leads.js';
+import aiRoutes from './routes/api/ai.js';
+import messagesRoutes from './routes/api/messages.js';
 import { metaWebhook, whatsappWebhook } from './routes/webhooks/index.js';
 
 // Load environment variables
