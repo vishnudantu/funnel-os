@@ -7,7 +7,8 @@ import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
-import SettingsPage from './pages/SettingsPage';
+import OrganizationSettingsPage from './pages/OrganizationSettings';
+import SuperAdminDashboard from './pages/SuperAdmin/Dashboard';
 
 function App() {
   return (
@@ -21,7 +22,8 @@ function App() {
           <Route path="leads/:id" element={<LeadDetailPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="integrations" element={<IntegrationsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="org-settings" element={<OrganizationSettingsPage />} />
+          <Route path="admin" element={<SuperAdminDashboard />} />
         </Route>
       </Routes>
     </AnimatePresence>

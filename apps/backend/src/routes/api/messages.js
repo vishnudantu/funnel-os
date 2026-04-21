@@ -1,13 +1,20 @@
 /**
  * Messages API Routes
  * WhatsApp and other channel messaging
+ * Organization-scoped
  */
 
 import { Router } from 'express';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
+import knex from '../../db/connection.js';
+import { authenticate } from '../../middleware/auth.js';
 import { getProvider } from '../../services/ai/index.js';
 
 const router = Router();
+
+// All routes require authentication
+router.use(authenticate);
 
 const sendMessageSchema = z.object({
   lead_id: z.string().uuid(),
@@ -17,25 +24,52 @@ const sendMessageSchema = z.object({
 
 /**
  * GET /api/messages
- * List messages for a lead
+ * List messages for a lead (scoped to organization)
  */
 router.get('/', async (req, res) => {
-  const { lead_id } = req.query;
+  const { lead_id, limit = 50 } = req.query;
+  const orgId = Buffer.from(req.auth.organizationId, 'hex');
 
   if (!lead_id) {
     return res.status(400).json({ error: 'lead_id required' });
   }
 
   try {
-    // In production, fetch from database
+    // Verify lead belongs to org
+    const lead = await knex('leads')
+      .where('id', Buffer.from(lead_id, 'hex'))
+      .where('organization_id', orgId)
+      .first();
+
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    const messages = await knex('messages')
+      .where('lead_id', lead.id)
+      .where('organization_id', orgId)
+      .orderBy('created_at', 'desc')
+      .limit(parseInt(limit))
+      .select('*');
+
     res.json({
-      messages: [],
+      messages: messages.map((m) => ({
+        id: Buffer.from(m.id).toString('hex'),
+        lead_id: lead_id,
+        channel: m.channel,
+        direction: m.direction,
+        body: m.body,
+        status: m.status,
+        sent_at: m.sent_at,
+        created_at: m.created_at,
+      })),
       pagination: {
-        total: 0,
+        total: messages.length,
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('List messages error:', error);
+    res.status(500).json({ error: 'Failed to list messages' });
   }
 });
 
@@ -46,22 +80,31 @@ router.get('/', async (req, res) => {
 router.post('/send', async (req, res) => {
   try {
     const { lead_id, channel, body } = sendMessageSchema.parse(req.body);
+    const orgId = Buffer.from(req.auth.organizationId, 'hex');
 
-    // Validate channel is configured
-    // In production, check provider_configs table
+    // Verify lead belongs to org
+    const lead = await knex('leads')
+      .where('id', Buffer.from(lead_id, 'hex'))
+      .where('organization_id', orgId)
+      .first();
+
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
 
     if (channel === 'whatsapp') {
       // Send via WhatsApp Cloud API
-      const result = await sendWhatsAppMessage(lead_id, body);
+      const result = await sendWhatsAppMessage(lead, body, orgId);
       return res.json(result);
     }
 
     res.status(400).json({ error: `Channel ${channel} not configured` });
   } catch (error) {
+    console.error('Send message error:', error);
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors });
     } else {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to send message' });
     }
   }
 });
@@ -73,75 +116,113 @@ router.post('/send', async (req, res) => {
 router.post('/draft', async (req, res) => {
   try {
     const { lead_id, context } = req.body;
+    const orgId = Buffer.from(req.auth.organizationId, 'hex');
 
     if (!lead_id) {
       return res.status(400).json({ error: 'lead_id required' });
     }
 
-    // In production, fetch lead from DB
-    const lead = {
-      id: lead_id,
-      name: 'Sample Lead',
-      email: 'lead@example.com',
-      phone: '+1234567890',
-      source: 'website',
-    };
+    // Fetch lead from DB
+    const lead = await knex('leads')
+      .where('id', Buffer.from(lead_id, 'hex'))
+      .where('organization_id', orgId)
+      .first();
+
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
 
     const provider = getProvider();
-    const draft = await provider.draftMessage(lead, context);
+    const draft = await provider.draftMessage(
+      {
+        id: lead_id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        source: lead.source,
+      },
+      context
+    );
 
     res.json({
       draft,
       generated_at: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Draft message error:', error);
+    res.status(500).json({ error: 'Failed to draft message' });
   }
 });
 
 /**
  * Send WhatsApp message via Cloud API
- * @param {string} leadId
- * @param {string} body
+ * @param {Object} lead - Lead object
+ * @param {string} body - Message body
+ * @param {Buffer} orgId - Organization ID buffer
  */
-async function sendWhatsAppMessage(leadId, body) {
-  // In production:
-  // 1. Get lead phone from database
-  // 2. Get WhatsApp credentials from provider_configs
-  // 3. Call WhatsApp Cloud API
-
+async function sendWhatsAppMessage(lead, body, orgId) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
-  // Mock response
-  return {
-    success: true,
-    message_id: 'wamid_' + Date.now(),
-    status: 'sent',
-    channel: 'whatsapp',
-  };
+  let messageRecord;
 
-  // Real implementation:
-  /*
-  const response = await fetch(
-    `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+  try {
+    // Create message record (pending)
+    const messageId = uuidv4().replace(/-/g, '');
+    await knex('messages').insert({
+      id: Buffer.from(messageId, 'hex'),
+      lead_id: lead.id,
+      organization_id: orgId,
+      channel: 'whatsapp',
+      direction: 'outbound',
+      body,
+      status: 'pending',
+    });
+
+    // Call WhatsApp API (mock for now)
+    const whatsappResult = {
+      success: true,
+      message_id: 'wamid_' + Date.now(),
+      status: 'sent',
+    };
+
+    // Update message record
+    await knex('messages')
+      .where('id', Buffer.from(messageId, 'hex'))
+      .update({
+        status: 'sent',
+        sent_at: knex.fn.now(),
+      });
+
+    // Create lead event
+    await knex('lead_events').insert({
+      id: Buffer.from(uuidv4().replace(/-/g, ''), 'hex'),
+      lead_id: lead.id,
+      organization_id: orgId,
+      event_type: 'message_sent',
+      payload: {
+        channel: 'whatsapp',
+        message_id: messageId,
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: leadPhone,
-        type: 'text',
-        text: { body },
-      }),
-    }
-  );
+    });
 
-  return response.json();
-  */
+    return {
+      success: true,
+      message_id: messageId,
+      status: 'sent',
+      channel: 'whatsapp',
+      whatsapp_message_id: whatsappResult.message_id,
+    };
+  } catch (error) {
+    // Update message record as failed
+    if (messageRecord) {
+      await knex('messages')
+        .where('id', Buffer.from(messageRecord.id, 'hex'))
+        .update({ status: 'failed' });
+    }
+
+    throw error;
+  }
 }
 
 export default router;
