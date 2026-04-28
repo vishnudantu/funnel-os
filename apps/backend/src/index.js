@@ -16,6 +16,7 @@ import leadsRoutes from './routes/api/leads.js';
 import aiRoutes from './routes/api/ai.js';
 import messagesRoutes from './routes/api/messages.js';
 import organizationsRoutes from './routes/api/organizations.js';
+import integrationsRoutes from './routes/api/integrations.js';
 import adminRoutes from './routes/admin/index.js';
 import { metaWebhook, whatsappWebhook } from './routes/webhooks/index.js';
 
@@ -64,6 +65,7 @@ app.use('/api/leads', leadsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/organizations', organizationsRoutes);
+app.use('/api/integrations', integrationsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Webhook routes (no rate limiting for webhooks)
