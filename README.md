@@ -1,192 +1,315 @@
-# FunnelOS
+# Saleduct
 
-**AI-Native Sales Funnel OS** — An intelligent sales CRM where leads from any source are automatically scored, tracked, messaged, and closed — with full human control and swappable AI backends.
+**Production-Ready AI-Native Sales Platform** — An intelligent sales CRM where leads from any source are automatically scored, tracked, messaged, and closed with full human control and swappable AI backends.
 
-## Architecture
+![Saleduct](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-```
-funnelos/
-├── apps/
-│   ├── frontend/          # React 18 + TypeScript + Vite
-│   └── backend/           # Node.js + Express ES Modules
-├── packages/
-│   └── shared/            # Shared types, constants, enums
-├── infra/
-│   ├── nginx/             # Nginx configs per environment
-│   └── pm2/               # PM2 ecosystem configs
-├── .github/workflows/     # CI/CD pipelines
-└── .env.*                 # Environment configurations
-```
+## Features
 
-## Tech Stack
+### Core Capabilities
+- **Multi-Tenant Architecture** - Complete organization isolation with role-based access control
+- **AI-Powered Lead Scoring** - Automatic lead qualification using Claude, GPT-4, or local Ollama
+- **Omnichannel Integration** - Meta, Google Ads, WhatsApp, SMS, Email in one platform
+- **Pipeline Management** - Visual Kanban board with customizable funnel stages
+- **Smart Automation** - Auto-advance leads based on AI-determined intent
+- **Real-Time Analytics** - Conversion rates, pipeline velocity, revenue forecasting
 
-### Backend
-- Node.js 20+ with ES Modules
-- Express.js
-- MariaDB with Knex.js migrations
-- AI Provider Factory (Ollama, Claude, OpenAI adapters)
-- JWT Authentication
+### Integrations (14+ Providers)
+| Category | Providers |
+|----------|-----------|
+| Lead Sources | Meta Lead Ads, Google Ads |
+| Messaging | WhatsApp Cloud API, Twilio SMS |
+| Notifications | Slack, Microsoft Teams |
+| Scheduling | Calendly, Cal.com |
+| Automation | Zapier, Make (Integromat) |
+| CRM | Salesforce, HubSpot |
+| Analytics | Google Analytics |
+| Custom | REST API with webhooks |
 
-### Frontend
-- React 18 + TypeScript
-- Vite (build)
-- Tailwind CSS v4
-- Framer Motion (animations)
-- Tanstack Query + Table
-- Zustand (state)
-- React Hook Form + Zod
-- Recharts
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 - Node.js 20+
-- MariaDB 10.6+
-- Ollama (for local AI) or Anthropic API key
+- MySQL 8.0+ or MariaDB 10.6+
+- Git
 
-### Development Setup
-
-1. **Install dependencies**
+### 1. Clone & Install
 ```bash
+git clone https://github.com/vishnudantu/saleduct.git
+cd saleduct
 npm install
 ```
 
-2. **Configure environment**
+### 2. Configure Environment
 ```bash
 cp .env.development .env
-# Edit .env with your settings
+# Edit .env with your database credentials
 ```
 
-3. **Start Ollama (for local AI)**
+### 3. Setup Database
 ```bash
-ollama pull qwen2.5:72b
-ollama serve
-```
-
-4. **Set up database**
-```bash
-mysql -u root -e "CREATE DATABASE funnelos;"
+mysql -u root -p -e "CREATE DATABASE saleduct;"
 npm run db:migrate
-npm run db:seed
 ```
 
-5. **Run development servers**
+### 4. Initialize Super Admin
+```bash
+npm run init-admin
+```
+
+Default credentials (change immediately!):
+- **Email:** `admin@saleduct.com`
+- **Password:** `Saleduct@2026!SecureAdmin`
+
+### 5. Start Development
 ```bash
 npm run dev
 ```
 
-This starts both frontend (port 5173) and backend (port 3001).
+Access the application at:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001
+- API Health: http://localhost:3001/health
 
-## Environment Variables
+## Production Deployment
 
-### Development (.env.development)
-```
-NODE_ENV=development
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:72b
-DB_HOST=localhost
-JWT_SECRET=dev-secret-change-in-production
-```
-
-### Staging (.env.staging)
-```
-NODE_ENV=staging
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://your-vps:11434
-DB_HOST=staging-db
-```
-
-### Production (.env.production - DO NOT COMMIT)
-```
+### Environment Variables (.env.production)
+```bash
+# Server
 NODE_ENV=production
+PORT=3001
+FRONTEND_URL=https://app.saleduct.com
+
+# Database
+DB_HOST=prod-db-host
+DB_PORT=3306
+DB_USER=saleduct_prod
+DB_PASSWORD=<secure-password>
+DB_NAME=saleduct
+
+# Security (generate with: openssl rand -hex 32)
+JWT_SECRET=<64-character-random-string>
+INTEGRATION_ENCRYPTION_KEY=<64-character-random-string>
+
+# AI Provider (choose one)
 AI_PROVIDER=claude
 CLAUDE_API_KEY=sk-ant-...
 CLAUDE_MODEL=claude-sonnet-4-6
-DB_HOST=prod-db
-JWT_SECRET=<secure-random-string>
+
+# Or use local Ollama
+# AI_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://localhost:11434
+# OLLAMA_MODEL=qwen2.5:72b
+
+# Session
+SESSION_TIMEOUT=7d
+MAX_LOGIN_ATTEMPTS=5
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Email (for invitations)
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASSWORD=<sendgrid-api-key>
+FROM_EMAIL=noreply@saleduct.com
+
+# WhatsApp (optional)
+WHATSAPP_PHONE_ID=
+WHATSAPP_BUSINESS_ACCOUNT_ID=
+WHATSAPP_ACCESS_TOKEN=
+
+# Slack (optional)
+SLACK_WEBHOOK_URL=
 ```
 
-## AI Provider System
+### Production Checklist
+- [ ] Database backups configured (daily automated)
+- [ ] SSL certificates installed
+- [ ] Firewall rules configured (ports 80, 443, 3306)
+- [ ] Environment variables secured (not in version control)
+- [ ] Rate limiting enabled
+- [ ] Monitoring/alerting configured
+- [ ] Log aggregation setup
+- [ ] Super admin password changed from default
+- [ ] API keys rotated
+- [ ] CORS configured for production domain
 
-FunnelOS uses a pluggable AI provider architecture. Switch between providers without code changes:
+### Deploy with Docker
+```bash
+# Build images
+docker-compose -f docker-compose.yml build
 
-```javascript
-// Backend reads AI_PROVIDER from env
-// Available providers:
-- ollama    (local, free)
-- claude    (Anthropic API)
-- openai    (OpenAI API)
-- gemini    (Google AI)
-- groq      (Groq API)
+# Run migrations
+docker-compose run --rm backend npm run db:migrate
+
+# Start services
+docker-compose -f docker-compose.yml up -d
+
+# View logs
+docker-compose logs -f
 ```
 
-Each provider implements the same interface:
-- `scoreLead(lead)` → Lead score with reasoning
-- `draftMessage(lead, context)` → Drafted outreach message
-- `summarizeThread(messages)` → Conversation summary
-- `classifyIntent(text)` → Message intent classification
+## Architecture
 
-## Database Schema
+### Backend (Node.js + Express)
+```
+apps/backend/
+├── src/
+│   ├── routes/          # API endpoints (REST)
+│   ├── services/        # Business logic
+│   ├── middleware/      # Auth, validation, error handling
+│   ├── db/
+│   │   ├── migrations/  # Database schema versions
+│   │   └── connection.js # Knex.js setup
+│   └── index.js         # Express app entry
+```
 
-Key tables:
-- `leads` — Core lead records
-- `lead_events` — Immutable event log
-- `ai_scores` — AI scoring history
-- `funnel_stages` — Configurable pipeline
-- `messages` — All communications
-- `provider_configs` — AI provider credentials
-- `api_integrations` — External connections
+### Frontend (React + TypeScript)
+```
+apps/frontend/
+├── src/
+│   ├── pages/           # Route components
+│   ├── components/      # Reusable UI components
+│   ├── lib/
+│   │   ├── api.ts       # API client
+│   │   └── utils.ts     # Helpers
+│   ├── hooks/           # Custom React hooks
+│   └── App.tsx          # Main router
+```
+
+### Database Schema
+```
+organizations          - Multi-tenant isolation
+├── users              - Platform users
+├── organization_memberships - User roles per org
+├── subscriptions      - Billing/plans
+├── leads              - Lead records
+├── lead_events        - Immutable activity log
+├── ai_scores          - AI scoring history
+├── funnel_stages      - Pipeline configuration
+├── lead_stages        - Lead-to-stage assignments
+├── messages           - Communications
+├── api_integrations   - External connections
+├── integration_events - Integration audit log
+├── webhook_logs       - Webhook debugging
+└── provider_configs   - AI provider credentials
+```
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` — Create user
-- `POST /api/auth/login` — Login
-- `GET /api/auth/me` — Get current user
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create new account |
+| POST | `/api/auth/login` | Login with credentials |
+| GET | `/api/auth/me` | Get current user |
+| POST | `/api/auth/switch-org` | Switch organization context |
 
 ### Leads
-- `GET /api/leads` — List leads
-- `GET /api/leads/:id` — Get lead details
-- `POST /api/leads` — Create lead
-- `POST /api/leads/:id/score` — Re-score with AI
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/leads` | List leads (paginated) |
+| GET | `/api/leads/:id` | Get lead details |
+| POST | `/api/leads` | Create lead |
+| PUT | `/api/leads/:id` | Update lead |
+| DELETE | `/api/leads/:id` | Delete lead |
+| POST | `/api/leads/:id/score` | Trigger AI scoring |
 
-### AI
-- `GET /api/ai/providers` — List available providers
-- `POST /api/ai/test-provider` — Test provider connection
-- `POST /api/ai/set-provider` — Switch active provider
-- `POST /api/ai/score` — Score a lead
-- `POST /api/ai/draft-message` — Draft a message
-- `POST /api/ai/classify` — Classify intent
+### Integrations
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/integrations` | List integrations |
+| GET | `/api/integrations/templates` | Available templates |
+| POST | `/api/integrations` | Create integration |
+| PUT | `/api/integrations/:id` | Update integration |
+| DELETE | `/api/integrations/:id` | Delete integration |
+| POST | `/api/integrations/:id/toggle` | Activate/deactivate |
+| POST | `/api/integrations/:id/test` | Test connection |
+| POST | `/api/integrations/webhooks/:provider` | Webhook handler |
 
-### Webhooks
-- `GET/POST /api/webhooks/meta` — Meta Lead Gen webhook
-- `GET/POST /api/webhooks/whatsapp` — WhatsApp Cloud API webhook
+### Organizations
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/organizations` | List user's orgs |
+| POST | `/api/organizations` | Create org |
+| PUT | `/api/organizations/:id` | Update org |
+| GET | `/api/organizations/:id/members` | List members |
+| POST | `/api/organizations/:id/members` | Invite member |
 
-## GitHub Workflow
+## Security
 
-| Branch | Environment | Deployment |
-|--------|-------------|------------|
-| `main` | Production | Manual approval required |
-| `staging` | Staging | Auto-deploy on push |
-| `dev/*` | Local | No auto-deploy |
-| `feature/*` | — | PR to staging |
-| `hotfix/*` | Production | Fast-track merge |
+- **JWT Authentication** - 7-day token expiry with refresh
+- **Password Hashing** - bcrypt with 12 rounds
+- **Credential Encryption** - AES-256-GCM for API keys
+- **SQL Injection Prevention** - Parameterized queries via Knex
+- **XSS Prevention** - React escapes by default
+- **Rate Limiting** - 100 requests per 15 minutes per IP
+- **CORS** - Configured for allowed origins only
+- **Multi-Tenant Isolation** - Organization-scoped queries
 
-## Build Order (Implementation Phases)
+## Development
 
-1. ✅ Repo scaffolding + CI/CD
-2. ✅ Database schema + migrations
-3. ✅ AI adapter factory
-4. ✅ Webhook handlers
-5. ✅ Frontend shell + auth
-6. ✅ Lead list view
-7. ✅ Pipeline board
-8. ✅ Lead detail drawer
-9. ✅ Integration settings
-10. ⏳ Analytics dashboard
-11. ⏳ WhatsApp send feature
+### Scripts
+```bash
+npm run dev           # Start both frontend & backend
+npm run dev:frontend  # Frontend only (port 5173)
+npm run dev:backend   # Backend only (port 3001)
+npm run build         # Build for production
+npm run db:migrate    # Run database migrations
+npm run db:seed       # Seed sample data
+npm run init-admin    # Create super admin user
+npm run lint          # ESLint check
+npm run typecheck     # TypeScript validation
+```
+
+### Testing
+```bash
+npm run test          # Run test suite
+npm run test:coverage # With coverage report
+```
+
+## Troubleshooting
+
+### Database Connection Failed
+```bash
+# Check MySQL is running
+mysql -u root -p -e "SELECT 1"
+
+# Verify database exists
+mysql -u root -p -e "SHOW DATABASES LIKE 'saleduct'"
+
+# Check .env credentials
+cat .env | grep DB_
+```
+
+### Port Already in Use
+```bash
+# Kill process on port 3001
+lsof -ti:3001 | xargs kill -9
+
+# Kill process on port 5173
+lsof -ti:5173 | xargs kill -9
+```
+
+### Migration Errors
+```bash
+# Reset migrations (development only!)
+mysql -u root -p saleduct -e "DROP TABLE knex_migrations"
+npm run db:migrate
+```
 
 ## License
 
-MIT
+MIT License - See [LICENSE](LICENSE) for details.
+
+## Support
+
+For issues and feature requests, please use [GitHub Issues](https://github.com/vishnudantu/saleduct/issues).
+
+---
+
+Built with React 18, Node.js 20, Express, MySQL/MariaDB, and AI excellence.
