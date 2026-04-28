@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env.development') });
 
 /** @type { import('knex').Knex.Config } */
 export const development = {
-  client: 'mariadb',
+  client: 'mysql2',
   connection: {
     host: process.env.DB_HOST || 'localhost',
     port: 3306,
