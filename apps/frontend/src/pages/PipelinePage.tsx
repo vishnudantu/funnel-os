@@ -1,55 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, DollarSign, Loader2, RefreshCw } from 'lucide-react';
 import { cn, formatCurrency, formatRelativeTime, getPriorityColor, getSourceColor } from '../lib/utils';
+import { api, type Lead as APILead } from '../lib/api';
 
-const mockStages = [
-  { id: '1', name: 'New Lead', order: 1, color: '#3B82F6', auto_action: true },
-  { id: '2', name: 'Contacted', order: 2, color: '#8B5CF6', auto_action: false },
-  { id: '3', name: 'Qualified', order: 3, color: '#16A34A', auto_action: false },
-  { id: '4', name: 'Proposal', order: 4, color: '#F59E0B', auto_action: false },
-  { id: '5', name: 'Negotiation', order: 5, color: '#EF4444', auto_action: false },
-  { id: '6', name: 'Closed Won', order: 6, color: '#10B981', auto_action: true },
-];
+interface Stage {
+  id: string;
+  name: string;
+  order: number;
+  color: string;
+  auto_action: boolean;
+}
 
-const mockLeads = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    email: 'sarah@techcorp.com',
-    phone: '+1234567890',
-    source: 'meta-ads',
-    stage_id: '1',
-    ai_score: { score: 85, reasoning: 'High intent signals', priority: 'high' as const },
-    last_activity: new Date(),
-    deal_value: 15000,
-  },
-  {
-    id: '2',
-    name: 'Mike Chen',
-    email: 'mike@startup.io',
-    phone: '+1987654321',
-    source: 'website',
-    stage_id: '2',
-    ai_score: { score: 62, reasoning: 'Engaged with content', priority: 'medium' as const },
-    last_activity: new Date(Date.now() - 3600000),
-    deal_value: 8000,
-  },
-  {
-    id: '3',
-    name: 'Emily Davis',
-    email: 'emily@enterprise.com',
-    phone: '+1122334455',
-    source: 'whatsapp',
-    stage_id: '3',
-    ai_score: { score: 91, reasoning: 'Budget confirmed', priority: 'urgent' as const },
-    last_activity: new Date(Date.now() - 7200000),
-    deal_value: 45000,
-  },
-];
+interface PipelineLead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  source: string;
+  stage_id: string;
+  ai_score: { score: number; reasoning: string; priority: 'low' | 'medium' | 'high' | 'urgent' } | null;
+  last_activity: Date;
+  deal_value?: number | null;
+}
 
 interface LeadCardProps {
-  lead: typeof mockLeads[0];
+  lead: PipelineLead;
   onClick: () => void;
 }
 
@@ -130,8 +106,8 @@ function LeadCard({ lead, onClick }: LeadCardProps) {
 }
 
 interface PipelineColumnProps {
-  stage: typeof mockStages[0];
-  leads: typeof mockLeads;
+  stage: Stage;
+  leads: PipelineLead[];
   onLeadClick: (id: string) => void;
 }
 
@@ -180,10 +156,62 @@ function PipelineColumn({ stage, leads, onLeadClick }: PipelineColumnProps) {
 
 export default function PipelinePage() {
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [leads, setLeads] = useState<PipelineLead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadPipelineData = async () => {
+    try {
+      setLoading(true);
+      const [stagesRes, leadsRes] = await Promise.all([
+        api.stages.list(),
+        api.leads.list({ limit: 100 }),
+      ]);
+      setStages(stagesRes || []);
+
+      const leadsWithStage = leadsRes.data.map((lead: APILead) => ({
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        source: lead.source,
+        stage_id: lead.stage_id || '1',
+        ai_score: lead.ai_score ? {
+          score: lead.ai_score.score,
+          reasoning: lead.ai_score.reasoning,
+          priority: lead.ai_score.priority as 'low' | 'medium' | 'high' | 'urgent',
+        } : null,
+        last_activity: new Date(lead.created_at),
+        deal_value: lead.deal_value,
+      }));
+      setLeads(leadsWithStage);
+    } catch (error) {
+      console.error('Failed to load pipeline data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPipelineData();
+  }, []);
 
   const getLeadsForStage = (stageId: string) => {
-    return mockLeads.filter((lead) => lead.stage_id === stageId);
+    return leads.filter((lead) => lead.stage_id === stageId);
   };
+
+  const totalValue = leads.reduce((sum, lead) => sum + (lead.deal_value || 0), 0);
+
+  if (loading && leads.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-500">
+          <Loader2 className="animate-spin" size={20} />
+          Loading pipeline...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -192,19 +220,24 @@ export default function PipelinePage() {
           <div>
             <h1 className="text-2xl font-bold text-[#0F172A]">Pipeline</h1>
             <p className="text-sm text-slate-500 mt-1">
-              {mockLeads.length} leads • {formatCurrency(mockLeads.reduce((s, l) => s + (l.deal_value || 0), 0))} total
+              {leads.length} leads • {formatCurrency(totalValue)} total
             </p>
           </div>
-          <button className="btn btn-primary">
-            <Plus size={18} />
-            <span>Add Lead</span>
-          </button>
+          <div className="flex gap-2">
+            <button onClick={loadPipelineData} className="btn btn-secondary p-2">
+              <RefreshCw size={18} className={cn(loading && 'animate-spin')} />
+            </button>
+            <button className="btn btn-primary">
+              <Plus size={18} />
+              <span>Add Lead</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-x-auto p-6">
         <div className="flex gap-4 h-full">
-          {mockStages.map((stage) => (
+          {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}
               stage={stage}

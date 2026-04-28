@@ -139,35 +139,37 @@ export default function SettingsPage() {
       const orgs = await api.organizations.list();
       if (orgs.organizations && orgs.organizations.length > 0) {
         const org = orgs.organizations[0];
-        const settings = org.settings || {};
+        const settings = org.settings as Record<string, unknown> || {};
         setCompanySettings({
-          company_name: settings.company_name || 'Saleduct Platform',
-          timezone: settings.timezone || 'UTC',
-          currency: settings.currency || 'USD',
-          date_format: settings.date_format || 'MM/DD/YYYY',
-          language: settings.language || 'en',
+          company_name: (settings.company_name as string) || 'Saleduct Platform',
+          timezone: (settings.timezone as string) || 'UTC',
+          currency: (settings.currency as string) || 'USD',
+          date_format: (settings.date_format as string) || 'MM/DD/YYYY',
+          language: (settings.language as string) || 'en',
         });
 
         // Load notification settings
-        if (settings.notifications) {
+        const notifications = settings.notifications as Record<string, unknown> | undefined;
+        if (notifications) {
           setNotifications({
-            high_score_leads: settings.notifications.high_score_leads ?? true,
-            stage_changes: settings.notifications.stage_changes ?? true,
-            daily_summary: settings.notifications.daily_summary ?? true,
-            whatsapp_replies: settings.notifications.whatsapp_replies ?? true,
-            email_notifications: settings.notifications.email_notifications ?? true,
-            slack_notifications: settings.notifications.slack_notifications ?? false,
+            high_score_leads: (notifications.high_score_leads as boolean) ?? true,
+            stage_changes: (notifications.stage_changes as boolean) ?? true,
+            daily_summary: (notifications.daily_summary as boolean) ?? true,
+            whatsapp_replies: (notifications.whatsapp_replies as boolean) ?? true,
+            email_notifications: (notifications.email_notifications as boolean) ?? true,
+            slack_notifications: (notifications.slack_notifications as boolean) ?? false,
           });
         }
 
         // Load AI provider settings
-        if (settings.ai_providers) {
+        const aiProviders = settings.ai_providers as Record<string, AIProviderConfig> | undefined;
+        if (aiProviders) {
           setProviderConfigs(prev => ({
             ...prev,
-            ...settings.ai_providers,
+            ...aiProviders,
           }));
-          const activeProvider = Object.entries(settings.ai_providers)
-            .find(([_, config]) => (config as AIProviderConfig).enabled)?.[0];
+          const activeProvider = Object.entries(aiProviders)
+            .find(([_, config]) => config.enabled)?.[0];
           if (activeProvider) setSelectedProvider(activeProvider);
         }
       }

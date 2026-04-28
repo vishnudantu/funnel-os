@@ -30,7 +30,7 @@ export interface Lead {
   email: string;
   phone: string;
   source: string;
-  deal_value: number | null;
+  deal_value?: number | null;
   ai_score: {
     score: number;
     reasoning: string;
@@ -192,5 +192,15 @@ export const api = {
       const queryString = searchParams.toString();
       return request<{ logs: unknown[] }>(`/integrations/webhooks/logs${queryString ? `?${queryString}` : ''}`);
     },
+  },
+
+  organizations: {
+    list: () => request<{ organizations: Array<{ id: string; name: string; plan: string; settings: Record<string, unknown> }> }>('/organizations'),
+    get: (id: string) => request<{ id: string; name: string; plan: string; settings: Record<string, unknown> }>(`/organizations/${id}`),
+    update: (id: string, data: { name?: string; settings?: Record<string, unknown> }) =>
+      request<{ organization: { id: string; name: string; plan: string; settings: Record<string, unknown> }; message: string }>(`/organizations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   },
 };
