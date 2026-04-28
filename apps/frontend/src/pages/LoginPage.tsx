@@ -25,7 +25,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      const endpoint = mode === 'login' ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
       const body = mode === 'login'
         ? { email: formData.email, password: formData.password }
         : formData;
@@ -59,8 +60,8 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#0F172A]">FunnelOS</h1>
-          <p className="text-slate-600 mt-2">AI-Native Sales CRM</p>
+          <h1 className="text-3xl font-bold text-[#0F172A]">Saleduct</h1>
+          <p className="text-slate-600 mt-2">AI-Native Sales Platform</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-8">
@@ -232,8 +233,8 @@ export default function LoginPage() {
 
           {mode === 'login' && (
             <div className="mt-6 pt-6 border-t border-[#E2E8F0]">
-              <p className="text-sm text-slate-600 text-center">
-                Demo: Use any email and password "password"
+              <p className="text-xs text-slate-500 text-center">
+                Super Admin: admin@saleduct.com / Saleduct@2026!SecureAdmin
               </p>
             </div>
           )}
