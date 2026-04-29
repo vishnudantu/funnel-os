@@ -33,38 +33,50 @@
 - Node.js 20+
 - MySQL 8.0+ or MariaDB 10.6+
 - Git
+- pnpm (`npm install -g pnpm`)
 
-### 1. Clone & Install
+### Windows Users - One-Click Setup
+
+1. **Double-click** `setup-windows.bat` in the project root
+2. Wait for setup to complete (~30 seconds)
+3. Run `pnpm run dev`
+4. Open http://localhost:5173
+
+Done! Login with:
+- **Email:** `admin@saleduct.com`
+- **Password:** `Saleduct@2026!SecureAdmin`
+
+### Manual Setup (All Platforms)
+
+#### 1. Install Dependencies
 ```bash
-git clone https://github.com/vishnudantu/saleduct.git
-cd saleduct
-npm install
+pnpm install
 ```
 
-### 2. Configure Environment
+#### 2. Configure Environment
 ```bash
 cp .env.development .env
 # Edit .env with your database credentials
 ```
 
-### 3. Setup Database
+#### 3. Setup Database
 ```bash
 mysql -u root -p -e "CREATE DATABASE saleduct;"
-npm run db:migrate
+pnpm run db:migrate
 ```
 
-### 4. Initialize Super Admin
+#### 4. Initialize Super Admin
 ```bash
-npm run init-admin
+node scripts/init-super-admin.js
 ```
 
 Default credentials (change immediately!):
 - **Email:** `admin@saleduct.com`
 - **Password:** `Saleduct@2026!SecureAdmin`
 
-### 5. Start Development
+#### 5. Start Development
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Access the application at:
@@ -255,15 +267,15 @@ organizations          - Multi-tenant isolation
 
 ### Scripts
 ```bash
-npm run dev           # Start both frontend & backend
-npm run dev:frontend  # Frontend only (port 5173)
-npm run dev:backend   # Backend only (port 3001)
-npm run build         # Build for production
-npm run db:migrate    # Run database migrations
-npm run db:seed       # Seed sample data
-npm run init-admin    # Create super admin user
-npm run lint          # ESLint check
-npm run typecheck     # TypeScript validation
+pnpm run dev           # Start both frontend & backend
+pnpm run dev:frontend  # Frontend only (port 5173)
+pnpm run dev:backend   # Backend only (port 3001)
+pnpm run build         # Build for production
+pnpm run db:migrate    # Run database migrations
+pnpm run db:seed       # Seed sample data
+node scripts/init-super-admin.js  # Create super admin user
+pnpm run lint          # ESLint check
+pnpm run typecheck     # TypeScript validation
 ```
 
 ### Testing
