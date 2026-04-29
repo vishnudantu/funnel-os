@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, DollarSign, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, DollarSign, Loader2, RefreshCw, GripVertical } from 'lucide-react';
 import { cn, formatCurrency, formatRelativeTime, getPriorityColor, getSourceColor } from '../lib/utils';
 import { api, type Lead as APILead } from '../lib/api';
 import AddLeadModal from '../components/AddLeadModal';
@@ -28,9 +28,10 @@ interface PipelineLead {
 interface LeadCardProps {
   lead: PipelineLead;
   onClick: () => void;
+  onDragStart: (e: React.DragEvent, leadId: string) => void;
 }
 
-function LeadCard({ lead, onClick }: LeadCardProps) {
+function LeadCard({ lead, onClick, onDragStart }: LeadCardProps) {
   return (
     <motion.div
       layout
@@ -38,16 +39,21 @@ function LeadCard({ lead, onClick }: LeadCardProps) {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -2 }}
+      draggable
+      onDragStart={(e) => onDragStart(e, lead.id)}
       onClick={onClick}
-      className="card p-4 cursor-pointer bg-white"
+      className="card p-4 cursor-pointer bg-white hover:shadow-lg transition-shadow group"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-[#0F172A] truncate">{lead.name}</h3>
+          <div className="flex items-center gap-2">
+            <GripVertical size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
+            <h3 className="font-semibold text-[#0F172A] truncate">{lead.name}</h3>
+          </div>
           <p className="text-sm text-slate-500 truncate">{lead.email}</p>
         </div>
         <span
-          className="text-xs px-2 py-1 rounded-full text-white font-medium"
+          className="text-xs px-2 py-1 rounded-full text-white font-medium flex-shrink-0"
           style={{ backgroundColor: getSourceColor(lead.source) }}
         >
           {lead.source}
@@ -57,7 +63,7 @@ function LeadCard({ lead, onClick }: LeadCardProps) {
       {lead.ai_score && (
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-2">
-            <div className="relative w-10 h-10">
+            <div className="relative w-10 h-10 flex-shrink-0">
               <svg className="w-10 h-10 transform -rotate-90">
                 <circle
                   cx="20"
@@ -111,9 +117,12 @@ interface PipelineColumnProps {
   leads: PipelineLead[];
   onLeadClick: (id: string) => void;
   onAddLead: () => void;
+  onDragStart: (e: React.DragEvent, leadId: string) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent, stageId: string) => void;
 }
 
-function PipelineColumn({ stage, leads, onLeadClick, onAddLead }: PipelineColumnProps) {
+function PipelineColumn({ stage, leads, onLeadClick, onAddLead, onDragStart, onDragOver, onDrop }: PipelineColumnProps) {
   const totalValue = leads.reduce((sum, lead) => sum + (lead.deal_value || 0), 0);
 
   return (
@@ -140,10 +149,22 @@ function PipelineColumn({ stage, leads, onLeadClick, onAddLead }: PipelineColumn
         )}
       </div>
 
-      <div className="flex-1 p-3 space-y-3 overflow-y-auto bg-[#F1F5F9] rounded-b-lg">
+      <div
+        className={cn(
+          "flex-1 p-3 space-y-3 overflow-y-auto rounded-b-lg transition-colors",
+          "bg-[#F1F5F9]"
+        )}
+        onDragOver={onDragOver}
+        onDrop={(e) => onDrop(e, stage.id)}
+      >
         <AnimatePresence>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onClick={() => onLeadClick(lead.id)} />
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              onClick={() => onLeadClick(lead.id)}
+              onDragStart={onDragStart}
+            />
           ))}
         </AnimatePresence>
 
@@ -165,6 +186,8 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [movingLead, setMovingLead] = useState(false);
 
   const loadPipelineData = async () => {
     try {
@@ -204,6 +227,39 @@ export default function PipelinePage() {
 
   const getLeadsForStage = (stageId: string) => {
     return leads.filter((lead) => lead.stage_id === stageId);
+  };
+
+  const handleDragStart = (e: React.DragEvent, leadId: string) => {
+    setDraggedLeadId(leadId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', leadId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('text/plain');
+    if (!leadId || draggedLeadId !== leadId) return;
+
+    setMovingLead(true);
+    try {
+      // Update lead stage in backend
+      await api.leads.update(leadId, { stage_id: stageId });
+      // Update local state
+      setLeads(leads.map(lead =>
+        lead.id === leadId ? { ...lead, stage_id: stageId } : lead
+      ));
+    } catch (error) {
+      console.error('Failed to move lead:', error);
+      alert('Failed to move lead to new stage');
+    } finally {
+      setMovingLead(false);
+      setDraggedLeadId(null);
+    }
   };
 
   const totalValue = leads.reduce((sum, lead) => sum + (lead.deal_value || 0), 0);
@@ -250,10 +306,22 @@ export default function PipelinePage() {
               leads={getLeadsForStage(stage.id)}
               onLeadClick={setSelectedLead}
               onAddLead={() => setShowAddLeadModal(true)}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
             />
           ))}
         </div>
       </div>
+
+      {movingLead && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3">
+            <Loader2 className="animate-spin" size={20} />
+            <span className="text-sm font-medium">Moving lead...</span>
+          </div>
+        </div>
+      )}
 
       <AddLeadModal
         isOpen={showAddLeadModal}
