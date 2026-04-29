@@ -1,10 +1,11 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Download, MoreHorizontal, ArrowUpDown, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, MoreHorizontal, ArrowUpDown, RefreshCw, Loader2, Plus } from 'lucide-react';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
 import { cn, formatRelativeTime, getSourceColor } from '../lib/utils';
 import { api } from '../lib/api';
+import AddLeadModal from '../components/AddLeadModal';
 const columnHelper = createColumnHelper();
 export default function LeadsPage() {
     const [sorting, setSorting] = useState([]);
@@ -12,6 +13,9 @@ export default function LeadsPage() {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
+    const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [selectedSource, setSelectedSource] = useState('all');
     const columns = [
         columnHelper.accessor('name', {
             header: ({ column }) => _jsxs("button", { onClick: () => column.toggleSorting(), className: "flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider", children: ["Name", _jsx(ArrowUpDown, { size: 14 })] }),
@@ -27,7 +31,12 @@ export default function LeadsPage() {
     const loadLeads = async () => {
         try {
             setLoading(true);
-            const result = await api.leads.list({ page: pagination.page, limit: pagination.limit, search: globalFilter });
+            const result = await api.leads.list({
+                page: pagination.page,
+                limit: pagination.limit,
+                search: globalFilter,
+                source: selectedSource === 'all' ? undefined : selectedSource,
+            });
             const leadsWithScore = result.data.map((lead) => ({
                 id: lead.id,
                 name: lead.name,
@@ -51,10 +60,37 @@ export default function LeadsPage() {
     };
     useEffect(() => {
         loadLeads();
-    }, [pagination.page, pagination.limit]);
+    }, [pagination.page, pagination.limit, selectedSource]);
+    const handleExport = () => {
+        const headers = ['Name', 'Email', 'Phone', 'Source', 'Score', 'Stage', 'Deal Value', 'Last Activity'];
+        const csvData = leads.map(lead => [
+            lead.name,
+            lead.email,
+            lead.phone,
+            lead.source,
+            lead.score,
+            lead.stage,
+            lead.deal_value || 0,
+            lead.lastActivity.toISOString(),
+        ]);
+        const csv = [
+            headers.join(','),
+            ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
     const table = useReactTable({ data: leads, columns, state: { sorting, globalFilter }, onSortingChange: setSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), getPaginationRowModel: getPaginationRowModel() });
     if (loading && leads.length === 0) {
         return (_jsx("div", { className: "h-full flex items-center justify-center", children: _jsxs("div", { className: "flex items-center gap-3 text-slate-500", children: [_jsx(Loader2, { className: "animate-spin", size: 20 }), "Loading leads..."] }) }));
     }
-    return (_jsxs("div", { className: "h-full flex flex-col", children: [_jsx("header", { className: "px-6 py-4 border-b border-[#E2E8F0] bg-white", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-2xl font-bold text-[#0F172A]", children: "Leads" }), _jsxs("p", { className: "text-sm text-slate-500 mt-1", children: [pagination.total, " total leads"] })] }), _jsx("button", { onClick: loadLeads, className: "btn btn-secondary p-2", children: _jsx(RefreshCw, { size: 18, className: cn(loading && 'animate-spin') }) })] }) }), _jsx("div", { className: "p-6 pb-0", children: _jsxs("div", { className: "flex flex-col sm:flex-row gap-4 mb-6", children: [_jsxs("div", { className: "relative flex-1", children: [_jsx(Search, { className: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400", size: 20 }), _jsx("input", { type: "text", placeholder: "Search leads...", value: globalFilter, onChange: (e) => setGlobalFilter(e.target.value), onKeyDown: (e) => e.key === 'Enter' && loadLeads(), className: "w-full pl-10 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]" })] }), _jsxs("div", { className: "flex gap-2", children: [_jsxs("button", { className: "btn btn-secondary", children: [_jsx(Filter, { size: 18 }), _jsx("span", { className: "mobile-hide", children: "Filters" })] }), _jsxs("button", { className: "btn btn-secondary", children: [_jsx(Download, { size: 18 }), _jsx("span", { className: "mobile-hide", children: "Export" })] })] })] }) }), _jsxs("div", { className: "flex-1 overflow-auto px-6 pb-6", children: [_jsx("div", { className: "bg-white rounded-lg border border-[#E2E8F0] overflow-hidden", children: _jsxs("table", { className: "w-full", children: [_jsx("thead", { className: "bg-[#F8FAFC] border-b border-[#E2E8F0]", children: table.getHeaderGroups().map((headerGroup) => _jsx("tr", { children: headerGroup.headers.map((header) => _jsx("th", { className: "px-4 py-3 text-left", children: flexRender(header.column.columnDef.header, header.getContext()) }, header.id)) }, headerGroup.id)) }), _jsx("tbody", { children: table.getRowModel().rows.map((row) => _jsx(motion.tr, { initial: { opacity: 0 }, animate: { opacity: 1 }, className: "border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors", children: row.getVisibleCells().map((cell) => _jsx("td", { className: "px-4 py-3", children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id)) }, row.id)) })] }) }), _jsxs("div", { className: "flex items-center justify-between mt-4", children: [_jsxs("p", { className: "text-sm text-slate-500", children: ["Showing ", table.getRowModel().rows.length, " of ", pagination.total, " leads"] }), _jsxs("div", { className: "flex gap-2", children: [_jsx("button", { onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), className: "btn btn-secondary px-4 py-2", children: "Previous" }), _jsx("button", { onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), className: "btn btn-secondary px-4 py-2", children: "Next" })] })] })] })] }));
+    return (_jsxs("div", { className: "h-full flex flex-col", children: [_jsx("header", { className: "px-6 py-4 border-b border-[#E2E8F0] bg-white", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-2xl font-bold text-[#0F172A]", children: "Leads" }), _jsxs("p", { className: "text-sm text-slate-500 mt-1", children: [pagination.total, " total leads"] })] }), _jsxs("div", { className: "flex gap-2", children: [_jsx("button", { onClick: loadLeads, className: "btn btn-secondary p-2", children: _jsx(RefreshCw, { size: 18, className: cn(loading && 'animate-spin') }) }), _jsxs("button", { onClick: () => setShowAddLeadModal(true), className: "btn btn-primary", children: [_jsx(Plus, { size: 18 }), _jsx("span", { className: "mobile-hide", children: "Add Lead" })] })] })] }) }), _jsxs("div", { className: "p-6 pb-0", children: [_jsxs("div", { className: "flex flex-col sm:flex-row gap-4 mb-6", children: [_jsxs("div", { className: "relative flex-1", children: [_jsx(Search, { className: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400", size: 20 }), _jsx("input", { type: "text", placeholder: "Search leads...", value: globalFilter, onChange: (e) => setGlobalFilter(e.target.value), onKeyDown: (e) => e.key === 'Enter' && loadLeads(), className: "w-full pl-10 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]" })] }), _jsxs("div", { className: "flex gap-2", children: [_jsxs("button", { onClick: () => setShowFilters(!showFilters), className: cn('btn btn-secondary', showFilters && 'bg-[#2563EB] text-white'), children: [_jsx(Filter, { size: 18 }), _jsx("span", { className: "mobile-hide", children: "Filters" })] }), _jsxs("button", { onClick: handleExport, className: "btn btn-secondary", children: [_jsx(Download, { size: 18 }), _jsx("span", { className: "mobile-hide", children: "Export" })] })] })] }), showFilters && (_jsxs("div", { className: "flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]", children: [_jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm font-medium text-slate-700", children: "Source:" }), _jsxs("select", { value: selectedSource, onChange: (e) => setSelectedSource(e.target.value), className: "px-3 py-1.5 border border-[#E2E8F0] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]", children: [_jsx("option", { value: "all", children: "All Sources" }), _jsx("option", { value: "Manual", children: "Manual" }), _jsx("option", { value: "Meta Ads", children: "Meta Ads" }), _jsx("option", { value: "Google Ads", children: "Google Ads" }), _jsx("option", { value: "Website", children: "Website" }), _jsx("option", { value: "WhatsApp", children: "WhatsApp" }), _jsx("option", { value: "Import", children: "Import" })] })] }), _jsx("button", { onClick: () => {
+                                    setSelectedSource('all');
+                                    setShowFilters(false);
+                                }, className: "text-sm text-[#2563EB] hover:underline", children: "Clear" })] }))] }), _jsxs("div", { className: "flex-1 overflow-auto px-6 pb-6", children: [_jsx("div", { className: "bg-white rounded-lg border border-[#E2E8F0] overflow-hidden", children: _jsxs("table", { className: "w-full", children: [_jsx("thead", { className: "bg-[#F8FAFC] border-b border-[#E2E8F0]", children: table.getHeaderGroups().map((headerGroup) => _jsx("tr", { children: headerGroup.headers.map((header) => _jsx("th", { className: "px-4 py-3 text-left", children: flexRender(header.column.columnDef.header, header.getContext()) }, header.id)) }, headerGroup.id)) }), _jsx("tbody", { children: table.getRowModel().rows.map((row) => _jsx(motion.tr, { initial: { opacity: 0 }, animate: { opacity: 1 }, className: "border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors", children: row.getVisibleCells().map((cell) => _jsx("td", { className: "px-4 py-3", children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id)) }, row.id)) })] }) }), _jsxs("div", { className: "flex items-center justify-between mt-4", children: [_jsxs("p", { className: "text-sm text-slate-500", children: ["Showing ", table.getRowModel().rows.length, " of ", pagination.total, " leads"] }), _jsxs("div", { className: "flex gap-2", children: [_jsx("button", { onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), className: "btn btn-secondary px-4 py-2", children: "Previous" }), _jsx("button", { onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), className: "btn btn-secondary px-4 py-2", children: "Next" })] })] })] }), _jsx(AddLeadModal, { isOpen: showAddLeadModal, onClose: () => setShowAddLeadModal(false), onSuccess: loadLeads })] }));
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, DollarSign, Loader2, RefreshCw } from 'lucide-react';
 import { cn, formatCurrency, formatRelativeTime, getPriorityColor, getSourceColor } from '../lib/utils';
 import { api, type Lead as APILead } from '../lib/api';
+import AddLeadModal from '../components/AddLeadModal';
 
 interface Stage {
   id: string;
@@ -109,9 +110,10 @@ interface PipelineColumnProps {
   stage: Stage;
   leads: PipelineLead[];
   onLeadClick: (id: string) => void;
+  onAddLead: () => void;
 }
 
-function PipelineColumn({ stage, leads, onLeadClick }: PipelineColumnProps) {
+function PipelineColumn({ stage, leads, onLeadClick, onAddLead }: PipelineColumnProps) {
   const totalValue = leads.reduce((sum, lead) => sum + (lead.deal_value || 0), 0);
 
   return (
@@ -145,7 +147,10 @@ function PipelineColumn({ stage, leads, onLeadClick }: PipelineColumnProps) {
           ))}
         </AnimatePresence>
 
-        <button className="w-full py-2 border-2 border-dashed border-[#E2E8F0] rounded-lg text-slate-400 hover:border-[#2563EB] hover:text-[#2563EB] transition-colors flex items-center justify-center gap-2">
+        <button
+          onClick={onAddLead}
+          className="w-full py-2 border-2 border-dashed border-[#E2E8F0] rounded-lg text-slate-400 hover:border-[#2563EB] hover:text-[#2563EB] transition-colors flex items-center justify-center gap-2"
+        >
           <Plus size={18} />
           <span className="text-sm font-medium">Add Lead</span>
         </button>
@@ -159,6 +164,7 @@ export default function PipelinePage() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<PipelineLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
 
   const loadPipelineData = async () => {
     try {
@@ -227,7 +233,7 @@ export default function PipelinePage() {
             <button onClick={loadPipelineData} className="btn btn-secondary p-2">
               <RefreshCw size={18} className={cn(loading && 'animate-spin')} />
             </button>
-            <button className="btn btn-primary">
+            <button onClick={() => setShowAddLeadModal(true)} className="btn btn-primary">
               <Plus size={18} />
               <span>Add Lead</span>
             </button>
@@ -243,10 +249,17 @@ export default function PipelinePage() {
               stage={stage}
               leads={getLeadsForStage(stage.id)}
               onLeadClick={setSelectedLead}
+              onAddLead={() => setShowAddLeadModal(true)}
             />
           ))}
         </div>
       </div>
+
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        onSuccess={loadPipelineData}
+      />
     </div>
   );
 }

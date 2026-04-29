@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Download, MoreHorizontal, ArrowUpDown, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, MoreHorizontal, ArrowUpDown, RefreshCw, Loader2, Plus, X } from 'lucide-react';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, flexRender, createColumnHelper, SortingState } from '@tanstack/react-table';
-import { cn, formatRelativeTime, getSourceColor } from '../lib/utils';
+import { cn, formatRelativeTime, getSourceColor, formatCurrency } from '../lib/utils';
 import { api, type Lead as APILead } from '../lib/api';
+import AddLeadModal from '../components/AddLeadModal';
 
 interface Lead {
   id: string;
@@ -25,6 +26,9 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<string>('all');
   const columns = [
     columnHelper.accessor('name', {
       header: ({ column }) => <button onClick={() => column.toggleSorting()} className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider">Name<ArrowUpDown size={14} /></button>,
@@ -40,7 +44,12 @@ export default function LeadsPage() {
   const loadLeads = async () => {
     try {
       setLoading(true);
-      const result = await api.leads.list({ page: pagination.page, limit: pagination.limit, search: globalFilter });
+      const result = await api.leads.list({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: globalFilter,
+        source: selectedSource === 'all' ? undefined : selectedSource,
+      });
       const leadsWithScore = result.data.map((lead: APILead) => ({
         id: lead.id,
         name: lead.name,
@@ -63,7 +72,34 @@ export default function LeadsPage() {
 
   useEffect(() => {
     loadLeads();
-  }, [pagination.page, pagination.limit]);
+  }, [pagination.page, pagination.limit, selectedSource]);
+
+  const handleExport = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Source', 'Score', 'Stage', 'Deal Value', 'Last Activity'];
+    const csvData = leads.map(lead => [
+      lead.name,
+      lead.email,
+      lead.phone,
+      lead.source,
+      lead.score,
+      lead.stage,
+      lead.deal_value || 0,
+      lead.lastActivity.toISOString(),
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const table = useReactTable({ data: leads, columns, state: { sorting, globalFilter }, onSortingChange: setSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), getPaginationRowModel: getPaginationRowModel() });
 
@@ -86,9 +122,15 @@ export default function LeadsPage() {
             <h1 className="text-2xl font-bold text-[#0F172A]">Leads</h1>
             <p className="text-sm text-slate-500 mt-1">{pagination.total} total leads</p>
           </div>
-          <button onClick={loadLeads} className="btn btn-secondary p-2">
-            <RefreshCw size={18} className={cn(loading && 'animate-spin')} />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={loadLeads} className="btn btn-secondary p-2">
+              <RefreshCw size={18} className={cn(loading && 'animate-spin')} />
+            </button>
+            <button onClick={() => setShowAddLeadModal(true)} className="btn btn-primary">
+              <Plus size={18} />
+              <span className="mobile-hide">Add Lead</span>
+            </button>
+          </div>
         </div>
       </header>
       <div className="p-6 pb-0">
@@ -105,10 +147,49 @@ export default function LeadsPage() {
             />
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-secondary"><Filter size={18} /><span className="mobile-hide">Filters</span></button>
-            <button className="btn btn-secondary"><Download size={18} /><span className="mobile-hide">Export</span></button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn('btn btn-secondary', showFilters && 'bg-[#2563EB] text-white')}
+            >
+              <Filter size={18} />
+              <span className="mobile-hide">Filters</span>
+            </button>
+            <button onClick={handleExport} className="btn btn-secondary">
+              <Download size={18} />
+              <span className="mobile-hide">Export</span>
+            </button>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">Source:</span>
+              <select
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="px-3 py-1.5 border border-[#E2E8F0] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              >
+                <option value="all">All Sources</option>
+                <option value="Manual">Manual</option>
+                <option value="Meta Ads">Meta Ads</option>
+                <option value="Google Ads">Google Ads</option>
+                <option value="Website">Website</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Import">Import</option>
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedSource('all');
+                setShowFilters(false);
+              }}
+              className="text-sm text-[#2563EB] hover:underline"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-auto px-6 pb-6">
         <div className="bg-white rounded-lg border border-[#E2E8F0] overflow-hidden">
@@ -121,6 +202,12 @@ export default function LeadsPage() {
         <div className="flex items-center justify-between mt-4"><p className="text-sm text-slate-500">Showing {table.getRowModel().rows.length} of {pagination.total} leads</p>
           <div className="flex gap-2"><button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="btn btn-secondary px-4 py-2">Previous</button><button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="btn btn-secondary px-4 py-2">Next</button></div></div>
       </div>
+
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        onSuccess={loadLeads}
+      />
     </div>
   );
 }
