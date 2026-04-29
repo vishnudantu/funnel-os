@@ -321,7 +321,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const orgId = Buffer.from(req.auth.organizationId, 'hex');
-    const { name, email, phone, deal_value, source } = req.body;
+    const { name, email, phone, deal_value, source, stage_id } = req.body;
 
     const lead = await knex('leads')
       .where('id', Buffer.from(id, 'hex'))
@@ -332,16 +332,46 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    await knex('leads')
-      .where('id', Buffer.from(id, 'hex'))
-      .update({
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(deal_value !== undefined && { deal_value }),
-        ...(source && { source }),
-        updated_at: knex.fn.now(),
-      });
+    await knex.transaction(async (trx) => {
+      // Update lead details
+      await trx('leads')
+        .where('id', Buffer.from(id, 'hex'))
+        .update({
+          ...(name && { name }),
+          ...(email && { email }),
+          ...(phone && { phone }),
+          ...(deal_value !== undefined && { deal_value }),
+          ...(source && { source }),
+          updated_at: knex.fn.now(),
+        });
+
+      // Update stage if provided
+      if (stage_id) {
+        const stageBuffer = Buffer.from(stage_id, 'hex');
+        // Update current stage to false
+        await trx('lead_stages')
+          .where('lead_id', Buffer.from(id, 'hex'))
+          .update({ is_current: false });
+
+        // Create new stage assignment
+        await trx('lead_stages').insert({
+          id: Buffer.from(require('crypto').randomUUID().replace(/-/g, ''), 'hex'),
+          lead_id: Buffer.from(id, 'hex'),
+          organization_id: orgId,
+          stage_id: stageBuffer,
+          is_current: true,
+        });
+
+        // Create event for stage change
+        await trx('lead_events').insert({
+          id: Buffer.from(require('crypto').randomUUID().replace(/-/g, ''), 'hex'),
+          lead_id: Buffer.from(id, 'hex'),
+          organization_id: orgId,
+          event_type: 'stage_changed',
+          payload: { new_stage_id: stage_id },
+        });
+      }
+    });
 
     res.json({ message: 'Lead updated successfully' });
   } catch (error) {
