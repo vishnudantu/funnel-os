@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Building, Bell, Shield, Save, Check, Loader2, AlertCircle,
   Key, Users, Workflow, Tags, FileText, Clock, Trash2, Edit2, Plus, X,
-  ChevronRight, RotateCcw, Download, Upload, Database
+  ChevronRight, RotateCcw, Download, Upload, Database, Globe
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
@@ -19,6 +19,16 @@ interface CompanySettings {
   address: string;
   website: string;
   logo_url?: string;
+}
+
+interface LocalizationSettings {
+  region: string;
+  currency: string;
+  date_format: string;
+  time_format: string;
+  number_format: string;
+  phone_format: string;
+  first_day_of_week: string;
 }
 
 interface NotificationSettings {
@@ -67,9 +77,60 @@ const timezones = [
 ];
 
 const currencies = [
-  { code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' },
-  { code: 'INR', symbol: '₹' }, { code: 'JPY', symbol: '¥' }, { code: 'AUD', symbol: 'A$' },
-  { code: 'CAD', symbol: 'C$' }, { code: 'SGD', symbol: 'S$' }, { code: 'AED', symbol: 'د.إ' }
+  { code: 'USD', symbol: '$', locale: 'en-US' },
+  { code: 'EUR', symbol: '€', locale: 'de-DE' },
+  { code: 'GBP', symbol: '£', locale: 'en-GB' },
+  { code: 'INR', symbol: '₹', locale: 'en-IN' },
+  { code: 'JPY', symbol: '¥', locale: 'ja-JP' },
+  { code: 'AUD', symbol: 'A$', locale: 'en-AU' },
+  { code: 'CAD', symbol: 'C$', locale: 'en-CA' },
+  { code: 'SGD', symbol: 'S$', locale: 'en-SG' },
+  { code: 'AED', symbol: 'د.إ', locale: 'ar-AE' },
+  { code: 'BRL', symbol: 'R$', locale: 'pt-BR' },
+  { code: 'CNY', symbol: '¥', locale: 'zh-CN' },
+  { code: 'CHF', symbol: 'CHF', locale: 'de-CH' },
+  { code: 'KRW', symbol: '₩', locale: 'ko-KR' },
+  { code: 'MXN', symbol: '$', locale: 'es-MX' },
+  { code: 'RUB', symbol: '₽', locale: 'ru-RU' },
+  { code: 'ZAR', symbol: 'R', locale: 'en-ZA' },
+];
+
+const regions = [
+  { code: 'US', name: 'United States', currency: 'USD', dateFormat: 'MM/DD/YYYY', timeFormat: '12h', phoneFormat: '+1 (XXX) XXX-XXXX' },
+  { code: 'GB', name: 'United Kingdom', currency: 'GBP', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+44 XXXX XXXXXX' },
+  { code: 'IN', name: 'India', currency: 'INR', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+91 XXXXX XXXXX' },
+  { code: 'DE', name: 'Germany', currency: 'EUR', dateFormat: 'DD.MM.YYYY', timeFormat: '24h', phoneFormat: '+49 XXXX XXXXXXX' },
+  { code: 'FR', name: 'France', currency: 'EUR', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+33 X XX XX XX XX' },
+  { code: 'JP', name: 'Japan', currency: 'JPY', dateFormat: 'YYYY/MM/DD', timeFormat: '24h', phoneFormat: '+81 XX XXXX XXXX' },
+  { code: 'AU', name: 'Australia', currency: 'AUD', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+61 XXX XXX XXX' },
+  { code: 'CA', name: 'Canada', currency: 'CAD', dateFormat: 'YYYY-MM-DD', timeFormat: '12h', phoneFormat: '+1 (XXX) XXX-XXXX' },
+  { code: 'SG', name: 'Singapore', currency: 'SGD', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+65 XXXX XXXX' },
+  { code: 'AE', name: 'United Arab Emirates', currency: 'AED', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+971 XX XXX XXXX' },
+  { code: 'BR', name: 'Brazil', currency: 'BRL', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+55 (XX) XXXXX-XXXX' },
+  { code: 'CN', name: 'China', currency: 'CNY', dateFormat: 'YYYY-MM-DD', timeFormat: '24h', phoneFormat: '+86 XXX XXXX XXXX' },
+  { code: 'KR', name: 'South Korea', currency: 'KRW', dateFormat: 'YYYY-MM-DD', timeFormat: '24h', phoneFormat: '+82 XX XXXX XXXX' },
+  { code: 'MX', name: 'Mexico', currency: 'MXN', dateFormat: 'DD/MM/YYYY', timeFormat: '12h', phoneFormat: '+52 XX XXXX XXXX' },
+  { code: 'ZA', name: 'South Africa', currency: 'ZAR', dateFormat: 'DD/MM/YYYY', timeFormat: '24h', phoneFormat: '+27 XX XXX XXXX' },
+];
+
+const dateFormats = [
+  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)' },
+  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (UK/Europe)' },
+  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (ISO)' },
+  { value: 'DD.MM.YYYY', label: 'DD.MM.YYYY (Germany)' },
+  { value: 'DD/MMM/YYYY', label: 'DD/MMM/YYYY (e.g., 01/Jan/2024)' },
+];
+
+const timeFormats = [
+  { value: '12h', label: '12-hour (AM/PM)' },
+  { value: '24h', label: '24-hour' },
+];
+
+const numberFormats = [
+  { value: 'en-US', label: '1,234.56 (US/UK)' },
+  { value: 'de-DE', label: '1.234,56 (Germany)' },
+  { value: 'fr-FR', label: '1 234,56 (France)' },
+  { value: 'en-IN', label: '1,23,456.78 (India)' },
 ];
 
 const aiProviders = [
@@ -83,7 +144,7 @@ const stageColors = [
   '#2563EB', '#16A34A', '#EA580C', '#8B5CF6', '#DC2626', '#0EA5E9', '#D97706', '#7C3AED'
 ];
 
-type SettingsTab = 'company' | 'pipeline' | 'ai' | 'notifications' | 'team' | 'data' | 'security';
+type SettingsTab = 'company' | 'localization' | 'pipeline' | 'ai' | 'notifications' | 'team' | 'data' | 'security';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -95,6 +156,16 @@ export default function SettingsPage() {
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
     company_name: '', timezone: 'UTC', currency: 'USD', date_format: 'MM/DD/YYYY',
     language: 'en', phone: '', address: '', website: '', logo_url: ''
+  });
+
+  const [localization, setLocalization] = useState<LocalizationSettings>({
+    region: 'US',
+    currency: 'USD',
+    date_format: 'MM/DD/YYYY',
+    time_format: '12h',
+    number_format: 'en-US',
+    phone_format: '+1 (XXX) XXX-XXXX',
+    first_day_of_week: 'Sunday'
   });
 
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -178,6 +249,43 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveLocalization = async () => {
+    setSaving(true);
+    try {
+      const orgs = await api.organizations.list();
+      if (orgs.organizations?.length > 0) {
+        await api.organizations.update(orgs.organizations[0].id, { settings: { localization } });
+        // Also update company settings with matching currency and date format
+        await api.organizations.update(orgs.organizations[0].id, {
+          settings: {
+            ...companySettings,
+            currency: localization.currency,
+            date_format: localization.date_format
+          }
+        });
+        showSaveMessage('success', 'Localization settings saved! Currency and date format updated.');
+      }
+    } catch (error) {
+      showSaveMessage('error', 'Failed to save localization settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRegionChange = (regionCode: string) => {
+    const region = regions.find(r => r.code === regionCode);
+    if (region) {
+      setLocalization({
+        ...localization,
+        region: region.code,
+        currency: region.currency,
+        date_format: region.dateFormat,
+        time_format: region.timeFormat,
+        phone_format: region.phoneFormat
+      });
+    }
+  };
+
   const handleSaveNotifications = async () => {
     setSaving(true);
     try {
@@ -232,6 +340,7 @@ export default function SettingsPage() {
 
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { id: 'company', label: 'Company', icon: <Building size={18} /> },
+    { id: 'localization', label: 'Localization', icon: <Globe size={18} /> },
     { id: 'pipeline', label: 'Pipeline', icon: <Workflow size={18} /> },
     { id: 'ai', label: 'AI Provider', icon: <Sparkles size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
@@ -352,6 +461,167 @@ export default function SettingsPage() {
                     className={cn('btn btn-primary', saving && 'opacity-50 cursor-not-allowed')}>
                     {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                     {saving ? 'Saving...' : 'Save Company Settings'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Localization Settings */}
+            {activeTab === 'localization' && (
+              <motion.div
+                key="localization"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="max-w-3xl"
+              >
+                <div className="card p-6 space-y-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#0F172A] mb-2">Region & Localization</h2>
+                    <p className="text-sm text-slate-500">
+                      Select your region to automatically configure currency, date format, and number formatting
+                    </p>
+                  </div>
+
+                  {/* Region Quick Select */}
+                  <div className="space-y-4">
+                    <div className="input-group">
+                      <select
+                        value={localization.region}
+                        onChange={(e) => handleRegionChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-base"
+                      >
+                        {regions.map(r => (
+                          <option key={r.code} value={r.code}>{r.name}</option>
+                        ))}
+                      </select>
+                      <label htmlFor="region">Select Region</label>
+                    </div>
+
+                    <div className="p-4 bg-[#2563EB]/10 border border-[#2563EB]/20 rounded-lg">
+                      <p className="text-sm font-medium text-[#2563EB] mb-2">Region Preset Applied:</p>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-slate-500">Currency:</span>
+                          <span className="ml-2 font-medium">{localization.currency}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Date Format:</span>
+                          <span className="ml-2 font-medium">{localization.date_format}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Time Format:</span>
+                          <span className="ml-2 font-medium">{localization.time_format === '12h' ? '12-hour (AM/PM)' : '24-hour'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Phone Format:</span>
+                          <span className="ml-2 font-medium">{localization.phone_format}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Currency */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-[#0F172A]">Currency Settings</h3>
+                    <div className="input-group">
+                      <select
+                        value={localization.currency}
+                        onChange={(e) => setLocalization({ ...localization, currency: e.target.value })}
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                      >
+                        {currencies.map(c => (
+                          <option key={c.code} value={c.code}>
+                            {c.symbol} - {c.code} ({c.locale})
+                          </option>
+                        ))}
+                      </select>
+                      <label htmlFor="currency">Currency</label>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                      <p className="text-xs text-slate-600">
+                        <span className="font-medium">Preview:</span>{' '}
+                        {new Intl.NumberFormat(
+                          currencies.find(c => c.code === localization.currency)?.locale || 'en-US',
+                          { style: 'currency', currency: localization.currency }
+                        ).format(1234.56)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-[#0F172A]">Date & Time</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="input-group">
+                        <select
+                          value={localization.date_format}
+                          onChange={(e) => setLocalization({ ...localization, date_format: e.target.value })}
+                          className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                        >
+                          {dateFormats.map(df => (
+                            <option key={df.value} value={df.value}>{df.label}</option>
+                          ))}
+                        </select>
+                        <label htmlFor="date_format">Date Format</label>
+                      </div>
+                      <div className="input-group">
+                        <select
+                          value={localization.time_format}
+                          onChange={(e) => setLocalization({ ...localization, time_format: e.target.value })}
+                          className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                        >
+                          {timeFormats.map(tf => (
+                            <option key={tf.value} value={tf.value}>{tf.label}</option>
+                          ))}
+                        </select>
+                        <label htmlFor="time_format">Time Format</label>
+                      </div>
+                    </div>
+                    <div className="input-group">
+                      <select
+                        value={localization.first_day_of_week}
+                        onChange={(e) => setLocalization({ ...localization, first_day_of_week: e.target.value })}
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                      >
+                        <option value="Sunday">Sunday</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Saturday">Saturday</option>
+                      </select>
+                      <label htmlFor="first_day_of_week">First Day of Week</label>
+                    </div>
+                  </div>
+
+                  {/* Number Format */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-[#0F172A]">Number Formatting</h3>
+                    <div className="input-group">
+                      <select
+                        value={localization.number_format}
+                        onChange={(e) => setLocalization({ ...localization, number_format: e.target.value })}
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                      >
+                        {numberFormats.map(nf => (
+                          <option key={nf.value} value={nf.value}>{nf.label}</option>
+                        ))}
+                      </select>
+                      <label htmlFor="number_format">Number Format</label>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                      <p className="text-xs text-slate-600">
+                        <span className="font-medium">Preview:</span>{' '}
+                        {new Intl.NumberFormat(localization.number_format, { minimumFractionDigits: 2 }).format(1234567.89)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSaveLocalization}
+                    disabled={saving}
+                    className={cn('btn btn-primary', saving && 'opacity-50 cursor-not-allowed')}
+                  >
+                    {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                    {saving ? 'Saving...' : 'Save Localization Settings'}
                   </button>
                 </div>
               </motion.div>

@@ -7,7 +7,7 @@ import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
-import OrganizationSettingsPage from './pages/OrganizationSettings';
+import SettingsPage from './pages/SettingsPage';
 import SuperAdminDashboard from './pages/SuperAdmin/Dashboard';
 
 function App() {
@@ -22,7 +22,7 @@ function App() {
           <Route path="leads/:id" element={<LeadDetailPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="integrations" element={<IntegrationsPage />} />
-          <Route path="org-settings" element={<OrganizationSettingsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="admin" element={<SuperAdminDashboard />} />
         </Route>
       </Routes>
